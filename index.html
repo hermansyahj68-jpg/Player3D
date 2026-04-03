@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+       <link rel="stylesheet" href="style.css?v=1.0">
+      <!-- ICON -->
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#121212">
+
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+    <title>player 3D</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', 'Poppins', system-ui, sans-serif;
+            touch-action: none;
+            background: #000;
+        }
+        
+        /* Info Panel */
+        #info {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 24px;
+            font-size: 12px;
+            font-weight: 500;
+            z-index: 20;
+            pointer-events: none;
+            border-left: 3px solid #ffaa44;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        #speed-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px);
+            padding: 6px 14px;
+            border-radius: 30px;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            z-index: 20;
+            pointer-events: none;
+        }
+        
+        /* Joystick Container */
+        .joystick-container {
+            position: absolute;
+    bottom: calc(30px + env(safe-area-inset-bottom)); /* 🔽 lebih ke bawah */
+    left: 30px; /* opsional: biar tidak terlalu ke tengah */
+    width: 130px;
+    height: 130px;
+            background: rgba(20,20,30,0.6);
+            backdrop-filter: blur(12px);
+            border-radius: 65px;
+            border: 1.5px solid rgba(255,255,255,0.4);
+            z-index: 30;
+            touch-action: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        
+        .joystick-base {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 110px;
+            height: 110px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 55px;
+            transform: translate(-50%, -50%);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .joystick-thumb {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 55px;
+            height: 55px;
+            background: rgba(255,200,100,0.95);
+            border-radius: 30px;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 0 3px rgba(0,0,0,0.3), 0 4px 12px black;
+            transition: transform 0.02s linear;
+            cursor: grab;
+            touch-action: none;
+        }
+        
+        /* Tombol Lompat (default portrait) */
+         /* Tombol Lompat di kanan */
+.jump-btn {
+    position: absolute;
+    bottom: calc(40px + env(safe-area-inset-bottom));
+    right: 40px;   /* 👉 pindah ke kanan */
+    left: auto;    /* penting: matikan posisi tengah */
+    transform: none;
+
+    width: 70px;
+    height: 70px;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(12px);
+    border-radius: 50%;
+    border: 2px solid #ffaa55;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffaa55;
+    font-size: 28px;
+    font-weight: bold;
+    z-index: 30;
+    cursor: pointer;
+    touch-action: none;
+    box-shadow: 0 4px 12px black;
+    transition: 0.05s linear;
+}
+
+        
+        .jump-btn:active {
+    transform: scale(0.92); /* ❗ jangan pakai translateX lagi */
+    background: #ffaa33;
+    color: black;
+}
+        
+        /* Area Slide */
+        .slide-area {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 50%;
+            height: 100%;
+            background: rgba(255,255,255,0.0);
+            z-index: 25;
+            touch-action: none;
+            pointer-events: auto;
+        }
+        
+        .slide-hint {
+            position: absolute;
+            bottom: 40px;
+            right: 20px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            padding: 6px 14px;
+            border-radius: 40px;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            z-index: 26;
+            pointer-events: none;
+            border-right: 2px solid #ffaa55;
+        }
+        
+        /* Crosshair */
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 3px;
+            height: 3px;
+            background: white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 40;
+            box-shadow: 0 0 0 2px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+        .crosshair::before, .crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255,255,255,0.9);
+        }
+        .crosshair {
+    display: none;
+}
+        
+        /* UI untuk TV - Tombol upload video */
+        .tv-control {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: row; /* jadi sejajar */
+    gap: 6px;
+    background: rgba(0,0,0,0.6);
+    padding: 6px;
+    border-radius: 20px;
+    z-index: 50;
+}
+        
+        .tv-label {
+            color: #ffaa55;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        
+        .upload-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    border-radius: 50%;
+    padding: 0;
+}
+        
+        .upload-btn:active {
+            transform: scale(0.96);
+        }
+        
+        #videoStatus {
+    display: none;
+}
+        
+        #instruction {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            background: rgba(0,0,0,0.4);
+            font-size: 8px;
+            padding: 4px;
+            pointer-events: none;
+            z-index: 20;
+        }
+        
+        @media (max-width: 700px) {
+            .joystick-container { left: 20px; bottom: 70px; width: 110px; height: 110px; }
+            .joystick-base { width: 90px; height: 90px; }
+            .joystick-thumb { width: 45px; height: 45px; }
+            .jump-btn { width: 60px; height: 60px; font-size: 24px; bottom: 85px; }
+            #speed-panel { font-size: 11px; bottom: 12px; right: 12px; }
+            .tv-control { top: 60px; right: 10px; padding: 8px 12px; }
+            .upload-btn { padding: 6px 12px; font-size: 11px; }
+        }
+
+         @media (orientation: landscape) {
+    .joystick-container {
+        bottom: calc(20px + env(safe-area-inset-bottom));
+    }
+
+    .jump-btn {
+        right: 40px;
+        bottom: calc(20px + env(safe-area-inset-bottom));
+        transform: none;
+    }
+}
+
+    </style>
+</head>
+<body>
+
+    <!-- Joystick -->
+    <div class="joystick-container" id="joystickContainer">
+        <div class="joystick-base"></div>
+        <div class="joystick-thumb" id="joystickThumb"></div>
+    </div>
+    
+    <!-- Tombol Lompat -->
+    <div class="jump-btn" id="jumpBtn">⬆️</div>
+    
+    <!-- Area Slide -->
+    <div class="slide-area" id="slideArea"></div>
+   
+    
+    <!-- Kontrol TV: Upload Video -->
+    <div class="tv-control">
+    <input type="file" id="videoUpload" accept="video/*" hidden>
+    <input type="file" id="floorUpload" accept="image/*" hidden>
+
+    <button class="upload-btn" id="uploadVideoBtn">🎬</button>
+    <button class="upload-btn" id="uploadFloorBtn">🖼️</button>
+     <input type="file" id="skyUpload" accept="image/*" hidden>
+<button id="uploadSkyBtn">🌄</button>
+     <!-- TAMBAHKAN INI -->
+    <div id="videoStatus" style="color:white; font-size:10px;"></div>
+</div>
+    
+   
+<!-- Import Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+   
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+        
+        // --- Setup Scene, Camera ---
+        const scene = new THREE.Scene();
+        
+        scene.fog = new THREE.FogExp2(0x071a3b, 0.006);
+
+         const loader = new THREE.TextureLoader();
+
+loader.load('gambarmu.jpg', (texture) => {
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    scene.background = texture;
+});
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.65, 0);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+        
+        const labelRenderer = new CSS2DRenderer();
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.domElement.style.position = 'absolute';
+        labelRenderer.domElement.style.top = '0px';
+        labelRenderer.domElement.style.left = '0px';
+        labelRenderer.domElement.style.pointerEvents = 'none';
+        document.body.appendChild(labelRenderer.domElement);
+        
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0x404060);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xfff5d1, 1.2);
+        dirLight.position.set(15, 25, 8);
+        dirLight.castShadow = true;
+        dirLight.receiveShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+        const fillLight = new THREE.PointLight(0x5577aa, 0.4);
+        fillLight.position.set(0, 5, 0);
+        scene.add(fillLight);
+        const playerLight = new THREE.PointLight(0xffaa66, 0.7, 12);
+        scene.add(playerLight);
+        
+        // --- Ground (Lantai) ---
+        const groundMat = new THREE.MeshStandardMaterial({ roughness: 0.85 });
+        const groundPlane = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), groundMat);
+        groundPlane.rotation.x = -Math.PI / 2;
+        groundPlane.position.y = -0.05;
+        groundPlane.receiveShadow = true;
+        scene.add(groundPlane);
+        
+        const gridHelper = new THREE.GridHelper(90, 40, 0xaaccff, 0x4488aa);
+        gridHelper.position.y = 0;
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = 0.0;
+        scene.add(gridHelper);
+        
+       
+        
+        // --- MEMBUAT TV LCD dengan Canvas Texture (Video bisa diputar) ---
+        // Ukuran TV: lebar 2.5, tinggi 1.5, tebal 0.2
+        const tvGroup = new THREE.Group();
+        tvGroup.position.set(5, 0.8, 6);  // Tempatkan TV di koordinat yang mudah dilihat
+        
+        // Bodi TV (kotak hitam)
+        const tvBodyMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3, metalness: 0.7 });
+        const tvBody = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.7, 0.25), tvBodyMat);
+        tvBody.castShadow = true;
+        tvBody.receiveShadow = false;
+        tvGroup.add(tvBody);
+        
+        // Bingkai layar
+        const frameMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.2 });
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.5, 0.05), frameMat);
+        frame.position.z = 0.14;
+        tvGroup.add(frame);
+        
+        // Canvas untuk video texture
+        const videoCanvas = document.createElement('canvas');
+        videoCanvas.width = 1024;
+        videoCanvas.height = 576;
+        const ctx = videoCanvas.getContext('2d');
+        // Gambar placeholder "TV OFF"
+        ctx.fillStyle = '#0a0a2a';
+        ctx.fillRect(0, 0, videoCanvas.width, videoCanvas.height);
+        ctx.fillStyle = '#88aaff';
+        ctx.font = 'bold 36px "Segoe UI"';
+        ctx.textAlign = 'center';
+        ctx.fillText("📺 PILIH VIDEO", videoCanvas.width/2, videoCanvas.height/2 - 20);
+        ctx.font = '24px monospace';
+        ctx.fillStyle = '#ffaa66';
+        ctx.fillText("Tekan tombol upload", videoCanvas.width/2, videoCanvas.height/2 + 40);
+        
+        const videoTexture = new THREE.CanvasTexture(videoCanvas);
+        videoTexture.minFilter = THREE.LinearFilter;
+        
+        const screenMat = new THREE.MeshStandardMaterial({ map: videoTexture, emissive: 0x224466, emissiveIntensity: 0.3 });
+        const screen = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.3, 0.03), screenMat);
+        screen.position.z = 0.16;
+        tvGroup.add(screen);
+        
+        // Kaki TV
+        const legMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+        const legLeft = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.4), legMat);
+        legLeft.position.set(-0.8, -0.85, 0.1);
+        const legRight = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.4), legMat);
+        legRight.position.set(0.8, -0.85, 0.1);
+        tvGroup.add(legLeft, legRight);
+        
+        scene.add(tvGroup);
+        
+        // Tambahkan efek lampu di sekitar TV (LED kecil)
+        const tvLight = new THREE.PointLight(0x3377ff, 0.5, 8);
+        tvLight.position.set(5, 1.2, 6.2);
+        scene.add(tvLight);
+        
+        // --- Video Playback dari Galeri ---
+        let currentVideoElement = null;
+        let videoAnimationId = null;
+        
+        function updateCanvasWithVideo(videoElement) {
+            if (!videoElement) return;
+            const updateFrame = () => {
+                if (!videoElement.paused && !videoElement.ended) {
+                    ctx.drawImage(videoElement, 0, 0, videoCanvas.width, videoCanvas.height);
+                    videoTexture.needsUpdate = true;
+                }
+                if (!videoElement.ended) {
+                    videoAnimationId = requestAnimationFrame(updateFrame);
+                } else {
+                    // Ketika video selesai, tampilkan pesan
+                    ctx.fillStyle = '#0a0a2a';
+                    ctx.fillRect(0, 0, videoCanvas.width, videoCanvas.height);
+                    ctx.fillStyle = '#88aaff';
+                    ctx.font = 'bold 32px "Segoe UI"';
+                    ctx.textAlign = 'center';
+                    ctx.fillText("✅ PLAYBACK SELESAI", videoCanvas.width/2, videoCanvas.height/2);
+                    ctx.font = '20px monospace';
+                    ctx.fillStyle = '#ffaa66';
+                    ctx.fillText("Upload video baru", videoCanvas.width/2, videoCanvas.height/2 + 50);
+                    videoTexture.needsUpdate = true;
+                    cancelAnimationFrame(videoAnimationId);
+                    videoAnimationId = null;
+                    document.getElementById('videoStatus').innerHTML = 'Video selesai 🔄 Upload ulang';
+                }
+            };
+            if (videoAnimationId) cancelAnimationFrame(videoAnimationId);
+            updateFrame();
+        }
+        
+        // Event upload video
+        const videoUploadInput = document.getElementById('videoUpload');
+        const uploadBtn = document.getElementById('uploadVideoBtn');
+        const videoStatusSpan = document.getElementById('videoStatus');
+        
+        uploadBtn.addEventListener('click', () => {
+            videoUploadInput.click();
+        });
+        
+        videoUploadInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!file.type.startsWith('video/')) {
+                videoStatusSpan.innerHTML = '❌ Bukan file video';
+                return;
+            }
+            
+            // Hentikan video sebelumnya jika ada
+            if (currentVideoElement) {
+                currentVideoElement.pause();
+                currentVideoElement.src = '';
+            }
+            
+            const url = URL.createObjectURL(file);
+            const videoEl = document.createElement('video');
+            videoEl.src = url;
+            videoEl.loop = false;
+            videoEl.muted = false;
+            videoEl.crossOrigin = "Anonymous";
+            videoEl.playsInline = true;
+            
+            videoEl.addEventListener('loadedmetadata', () => {
+                videoEl.play().then(() => {
+                    videoStatusSpan.innerHTML = `📺 Memutar: ${file.name.substring(0, 20)}`;
+                    currentVideoElement = videoEl;
+                    updateCanvasWithVideo(videoEl);
+                    // Efek lampu TV berdenyut
+                    tvLight.intensity = 0.9;
+                }).catch(err => {
+                    console.warn('Autoplay error:', err);
+                    videoStatusSpan.innerHTML = '⚠️ Gagal putar (autoplay)';
+                    ctx.fillStyle = '#330000';
+                    ctx.fillRect(0, 0, videoCanvas.width, videoCanvas.height);
+                    ctx.fillStyle = '#ff8888';
+                    ctx.font = 'bold 28px sans-serif';
+                    ctx.fillText("Gagal memutar video", videoCanvas.width/2, videoCanvas.height/2);
+                    videoTexture.needsUpdate = true;
+                });
+            });
+            
+            videoEl.addEventListener('ended', () => {
+                videoStatusSpan.innerHTML = '✅ Video selesai';
+                URL.revokeObjectURL(url);
+            });
+            
+            videoEl.addEventListener('error', () => {
+                videoStatusSpan.innerHTML = '❌ Error video';
+                URL.revokeObjectURL(url);
+            });
+        });
+       
+        
+        // --- Kontrol Joystick dan Movement (Fix maju mundur)---
+        let joyX = 0, joyY = 0;
+        let targetPitch = 0, targetYaw = 0;
+        let currentPitch = 0, currentYaw = 0;
+        let cameraSlideActive = false;
+        let lastSlideX = 0, lastSlideY = 0;
+         let lookTouchId = null;
+        // TAMBAHKAN DI SINI 👇
+let slideVelocityX = 0;
+let slideVelocityY = 0;
+const slideDamping = 0.90;
+        let velocityY = 0;
+        let isGrounded = true;
+        const GRAVITY = 18;
+        const JUMP_POWER = 6.2;
+        const MOVE_SPEED = 3.0;
+
+        let bobTime = 0;
+const bobSpeed = 10;     // kecepatan langkah
+const bobAmount = 0.05;  // tinggi naik turun (kecilkan kalau terlalu goyang)
+        
+        // Joystick logic
+        const joystickContainer = document.getElementById('joystickContainer');
+        const joystickThumb = document.getElementById('joystickThumb');
+        const slideArea = document.getElementById('slideArea');
+        const jumpBtn = document.getElementById('jumpBtn');
+        
+        let activeJoystickTouchId = null;
+        
+        function updateJoystickPosition(clientX, clientY) {
+            const rect = joystickContainer.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const maxRadius = rect.width / 2 - 8;
+            
+            let dx = clientX - centerX;
+            let dy = clientY - centerY;
+            const distance = Math.hypot(dx, dy);
+            
+            let normX = 0, normY = 0;
+            if (distance > maxRadius) {
+                normX = dx / distance;
+                normY = dy / distance;
+                dx = normX * maxRadius;
+                dy = normY * maxRadius;
+            } else {
+                normX = dx / maxRadius;
+                normY = dy / maxRadius;
+            }
+            
+            joyX = Math.min(1, Math.max(-1, normX));
+            // FIX: joystick ke atas (nilai Y negatif) = maju
+            joyY = Math.min(1, Math.max(-1, normY));   // Normal: tarik atas = maju
+            
+            joystickThumb.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        }
+        
+        function resetJoystick() {
+            joyX = 0;
+            joyY = 0;
+            joystickThumb.style.transform = `translate(-50%, -50%)`;
+        }
+        
+        joystickContainer.addEventListener('touchstart', (e) => { e.preventDefault(); const touch = e.touches[0]; activeJoystickTouchId = touch.identifier; updateJoystickPosition(touch.clientX, touch.clientY); }, { passive: false });
+        joystickContainer.addEventListener('touchmove', (e) => { e.preventDefault(); for (let t of e.touches) if (t.identifier === activeJoystickTouchId) updateJoystickPosition(t.clientX, t.clientY); }, { passive: false });
+        joystickContainer.addEventListener('touchend', (e) => { activeJoystickTouchId = null; resetJoystick(); });
+        
+        let mouseJoystickActive = false;
+        joystickContainer.addEventListener('mousedown', (e) => { mouseJoystickActive = true; updateJoystickPosition(e.clientX, e.clientY); });
+        window.addEventListener('mousemove', (e) => { if (mouseJoystickActive) updateJoystickPosition(e.clientX, e.clientY); });
+        window.addEventListener('mouseup', () => { mouseJoystickActive = false; resetJoystick(); });
+        
+        // Slide area untuk rotasi kamera
+        function onSlideStart(e) {
+    e.preventDefault();
+    cameraSlideActive = true;
+
+    const p = e.touches ? e.touches[0] : e;
+    lastSlideX = p.clientX;
+    lastSlideY = p.clientY;
+}
+
+function onSlideMove(e) {
+    if (!cameraSlideActive) return;
+    e.preventDefault();
+
+    const p = e.touches ? e.touches[0] : e;
+    const dx = p.clientX - lastSlideX;
+    const dy = p.clientY - lastSlideY;
+
+    // Simpan ke velocity (bukan langsung ke kamera)
+    slideVelocityX = dx * 0.003;
+    slideVelocityY = dy * 0.003;
+
+    lastSlideX = p.clientX;
+    lastSlideY = p.clientY;
+}
+
+function onSlideEnd() {
+    cameraSlideActive = false;
+}
+
+// TOUCH (FIX UTAMA)
+
+
+window.addEventListener('mousemove', (e) => {
+    if (cameraSlideActive) onSlideMove(e);
+});
+
+window.addEventListener('mouseup', onSlideEnd);
+
+        
+        function performJump() { if (isGrounded) { velocityY = JUMP_POWER; isGrounded = false; } }
+        jumpBtn.addEventListener('click', (e) => { e.preventDefault(); performJump(); });
+        jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); performJump(); });
+        
+        // Movement update
+        let lastTime = performance.now() / 1000;
+        function updateMovement(delta) {
+
+          // Inertia camera movement
+targetYaw += slideVelocityX;
+targetPitch += slideVelocityY;
+
+// Batasi pitch
+targetPitch = Math.max(-Math.PI/2.3, Math.min(Math.PI/2.3, targetPitch));
+
+// Kurangi velocity perlahan (efek gesekan)
+slideVelocityX *= slideDamping;
+slideVelocityY *= slideDamping;
+
+            if (delta > 0.033) delta = 0.033;
+            currentYaw += (targetYaw - currentYaw) * 0.22;
+            currentPitch += (targetPitch - currentPitch) * 0.22;
+            camera.rotation.order = 'YXZ';
+            camera.rotation.x = currentPitch;
+            camera.rotation.y = currentYaw;
+            
+            const forward = new THREE.Vector3(Math.sin(currentYaw), 0, Math.cos(currentYaw));
+            const right = new THREE.Vector3(Math.cos(currentYaw), 0, -Math.sin(currentYaw));
+            const moveZ = joyY;
+            const moveX = joyX;
+            let moveDelta = new THREE.Vector3(0,0,0);
+            moveDelta.addScaledVector(forward, moveZ * MOVE_SPEED * delta);
+            moveDelta.addScaledVector(right, moveX * MOVE_SPEED * delta);
+            
+            let newX = camera.position.x + moveDelta.x;
+            let newZ = camera.position.z + moveDelta.z;
+            const boundary = 34;
+            newX = Math.max(-boundary, Math.min(boundary, newX));
+            newZ = Math.max(-boundary, Math.min(boundary, newZ));
+            camera.position.x = newX;
+            camera.position.z = newZ;
+            
+            if (!isGrounded) {
+                velocityY -= GRAVITY * delta;
+                camera.position.y += velocityY * delta;
+                if (camera.position.y <= 1.65) { camera.position.y = 1.65; velocityY = 0; isGrounded = true; }
+            } else { camera.position.y = 1.65; }
+            
+            const horSpeed = Math.hypot(moveDelta.x, moveDelta.z) / delta;
+          
+            playerLight.position.set(camera.position.x, camera.position.y + 0.6, camera.position.z);
+
+           // HEAD BOBBING
+if (horSpeed > 0.1 && isGrounded) {
+    bobTime += delta * bobSpeed;
+    const bobOffset = Math.sin(bobTime) * bobAmount;
+    camera.position.y = 1.65 + bobOffset;
+} else {
+    // reset halus ke posisi normal
+    camera.position.y += (1.65 - camera.position.y) * 0.2;
+    bobTime = 0;
+}
+}
+        
+        
+        let timeAcc = 0;
+        function animate() {
+            const now = performance.now() / 1000;
+            let delta = Math.min(0.033, now - (lastTime || now));
+            lastTime = now;
+            updateMovement(delta);
+            
+            // Efek lampu TV berdenyut saat video diputar
+            
+            playerLight.intensity = 0.65 + Math.sin(timeAcc * 6) * 0.12;
+            
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+        
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); labelRenderer.setSize(window.innerWidth, window.innerHeight); });
+
+        // === Upload Texture Lantai ===
+const floorUploadInput = document.getElementById('floorUpload');
+const uploadFloorBtn = document.getElementById('uploadFloorBtn');
+const floorStatus = document.getElementById('floorStatus');
+
+uploadFloorBtn.addEventListener('click', () => {
+    floorUploadInput.click();
+});
+
+floorUploadInput.addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        floorStatus.innerHTML = '❌ Bukan gambar';
+        return;
+    }
+
+    const url = URL.createObjectURL(file);
+    const loader = new THREE.TextureLoader();
+
+    loader.load(url, (texture) => {
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+
+        // atur ukuran tile (biar tidak terlalu besar)
+        texture.repeat.set(10, 10);
+
+        groundMat.map = texture;
+        groundMat.needsUpdate = true;
+
+        floorStatus.innerHTML = '✅ Gambar diterapkan';
+        URL.revokeObjectURL(url);
+    });
+});
+
+const skyUpload = document.getElementById('skyUpload');
+const uploadSkyBtn = document.getElementById('uploadSkyBtn');
+
+uploadSkyBtn.addEventListener('click', () => {
+    skyUpload.click();
+});
+
+skyUpload.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const url = URL.createObjectURL(file);
+    const loader = new THREE.TextureLoader();
+
+    loader.load(url, (texture) => {
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        scene.background = texture;
+        URL.revokeObjectURL(url);
+    });
+});
+
+// === TARUH DI SINI ===
+
+// TOUCH GLOBAL MULTI-TOUCH
+window.addEventListener('touchstart', (e) => {
+    for (let t of e.touches) {
+
+        const rect = joystickContainer.getBoundingClientRect();
+
+        const inJoystick =
+            t.clientX >= rect.left &&
+            t.clientX <= rect.right &&
+            t.clientY >= rect.top &&
+            t.clientY <= rect.bottom;
+
+        // ✅ hanya jika benar-benar di dalam lingkaran joystick
+        if (inJoystick) {
+            activeJoystickTouchId = t.identifier;
+            updateJoystickPosition(t.clientX, t.clientY);
+        } else {
+            // kamera (selain joystick)
+            lookTouchId = t.identifier;
+            cameraSlideActive = true;
+            lastSlideX = t.clientX;
+            lastSlideY = t.clientY;
+        }
+    }
+}, { passive: false });
+
+
+window.addEventListener('touchmove', (e) => {
+    for (let t of e.touches) {
+
+        // joystick
+        if (t.identifier === activeJoystickTouchId) {
+            updateJoystickPosition(t.clientX, t.clientY);
+        }
+
+        // kamera
+        if (t.identifier === lookTouchId) {
+            const dx = t.clientX - lastSlideX;
+            const dy = t.clientY - lastSlideY;
+
+            slideVelocityX = dx * 0.004;
+            slideVelocityY = dy * 0.004;
+
+            lastSlideX = t.clientX;
+            lastSlideY = t.clientY;
+        }
+    }
+}, { passive: false });
+
+
+window.addEventListener('touchend', (e) => {
+    for (let t of e.changedTouches) {
+
+        if (t.identifier === activeJoystickTouchId) {
+            activeJoystickTouchId = null;
+            resetJoystick();
+        }
+
+        if (t.identifier === lookTouchId) {
+            lookTouchId = null;
+            cameraSlideActive = false;
+        }
+    }
+});
+        animate();
+        console.log('Game 3D dengan TV LCD + Upload Video (clean: tanpa pohon, partikel, label TV) siap!');
+    </script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js')
+  .then(function(reg){
+    console.log("Service Worker aktif", reg);
+  }).catch(function(err){
+    console.log("Service Worker gagal", err);
+  });
+        }
+</script>
+</body>
+</html>
